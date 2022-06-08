@@ -1,0 +1,141 @@
+SELECT * FROM nvhousing
+-- STANDARDIZE DATE FORMAT
+SELECT saledate FROM nvhousing
+ALTER TABLE nvhousing
+ALTER COLUMN saledate
+TYPE date
+SELECT saledate FROM nvhousing
+
+--POPULATING PROPERTY ADDRESS DATA
+SELECT propertyadddress FROM nvhousing
+WHERE propertyaddress is NULl
+
+SELECT * FROM nvhousing 
+ORDER BY parcelid
+
+SELECT A.parcelid,A.propertyaddress,B.parcelid,B.propertyaddress
+FROM nvhousing as A
+JOIN nvhousing as B
+ON A.parcelid=B.parcelid
+AND A.uniqueid<>B.uniqueid
+WHERE A.propertyaddress IS NULL
+
+SELECT A.parcelid,A.propertyaddress,B.parcelid,B.propertyaddress,COALESCE(a.propertyaddress,b.propertyaddress) 
+FROM nvhousing as A
+JOIN nvhousing as B
+ON A.parcelid=B.parcelid
+AND A.uniqueid<>B.uniqueid
+WHERE A.propertyaddress IS NULL
+
+UPDATE nvhousing
+SET propertyaddress = COALESCE(a.propertyaddress,b.propertyaddress)
+FROM nvhousing as A
+JOIN nvhousing as B
+ON A.parcelid=B.parcelid
+AND A.uniqueid<>B.uniqueid
+WHERE A.propertyaddress IS NULL
+
+
+--Formalizing property address separating into address and city
+SELECT
+left(propertyaddress,strpos(propertyaddress,',')-1),
+ right(propertyaddress,strpos(propertyaddress,',')-2)
+ FROM nvhousing as property_address
+ 
+ ALTER TABLE nvhousing
+ ADD property_address VARCHAR(225)
+ 
+ UPDATE nvhousing
+ SET property_address =
+ left(propertyaddress,strpos(propertyaddress,',')-1)
+ 
+ ALTER TABLE nvhousing
+ ADD city	VARCHAR(225)
+ 
+ UPDATE nvhousing
+ SET city=
+ substring(propertyaddress,strpos(propertyaddress,',')+1,length(propertyaddress))
+ 
+ 
+ 
+ 
+ SELECT property_address,city FROM nvhousing
+ 
+-- BREAKING owner address into address,city and state
+ SELECT owneraddress FROM nvhousing
+ 
+ SELECT SPLIT_Part(owneraddress,',',1),
+ SPLIT_Part(owneraddress,',',2),
+ SPLIT_Part(owneraddress,',',3)
+ FROM nvhousing
+ 
+ 
+ ALTER TABLE nvhousing
+ ADD owner_address VARCHAR(225)
+ UPDATE nvhousing
+ SET owner_address= SPLIT_Part(owneraddress,',',1)
+ 
+ 
+ 
+ ALTER TABLE nvhousing
+ ADD owner_city
+ VARCHAR(225)
+ UPDATE nvhousing
+ SET owner_city=
+ SPLIT_Part(owneraddress,',',2)
+ 
+ 
+ ALTER TABLE nvhousing
+ ADD owner_state
+ VARCHAR(225)
+ UPDATE nvhousing
+ SET owner_state =
+ SPLIT_Part(owneraddress,',',3)
+ 
+ 
+ SELECT *
+ FROM nvhousing
+ 
+-- CONVERTING IRREGULAR soldasvacant data into yes and no only
+ 
+ SELECT DISTINCT(soldasvacant) ,COUNT(soldasvacant)
+ FROM nvhousing
+ GROUP BY soldasvacant
+ 
+ 
+ UPDATE nvhousing
+ SET soldasvacant =
+ CASE soldasvacant
+ 			WHEN 'NO'THEN 'No'
+			WHEN 'YES' THEN 'Yes'
+			ELSE 
+			soldasvacant
+			END
+
+
+--REMOVING DUPLICATE ROWS
+select * FROM nvhousing
+
+
+CREATE VIEW duplicate AS
+SELECT * , row_number() OVER(PARTITION BY parcelid,propertyaddress,saledate,saleprice,legalreference ORDER BY uniqueid)
+FROM nvhousing
+
+
+DELETE FROM nvhousing 
+WHERE uniqueid IN(
+SELECT uniqueid 
+	FROM duplicate
+ WHERE row_number >1
+ )
+ 
+ 
+--DELETING unnecessary columns
+ DROP VIEW duplicate
+ 
+ ALTER TABLE nvhousing
+ DROP COLUMN IF EXISTS owneraddress
+ 
+ 
+ALTER TABLE nvhousing
+ DROP COLUMN IF EXISTS propertyaddress
